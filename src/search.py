@@ -1,3 +1,11 @@
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnableLambda
+
+from providers import get_llm, get_vector_store
+
+TOP_K = 10
+
 PROMPT_TEMPLATE = """
 CONTEXTO:
 {contexto}
@@ -25,5 +33,30 @@ PERGUNTA DO USUÁRIO:
 RESPONDA A "PERGUNTA DO USUÁRIO"
 """
 
+
 def search_prompt(question=None):
-    pass
+    """Monta a chain de RAG: vetoriza a pergunta, busca k=10 no PGVector, preenche o prompt e chama a LLM.
+
+    Sem `question`, retorna a chain (use `chain.invoke(pergunta)`); com `question`, retorna a resposta.
+    Em caso de erro de configuração, retorna None.
+    """
+    try:
+        store = get_vector_store()
+        llm = get_llm()
+    except Exception as exc:  # noqa: BLE001
+        print(f"Erro ao inicializar a busca: {exc}")
+        return None
+
+    prompt = PromptTemplate(input_variables=["contexto", "pergunta"], template=PROMPT_TEMPLATE)
+
+    def build_inputs(pergunta: str) -> dict:
+        # Vetoriza a pergunta e traz os 10 chunks mais próximos do banco vetorial.
+        results = store.similarity_search_with_score(pergunta, k=TOP_K)
+        contexto = "\n\n".join(doc.page_content for doc, _score in results)
+        return {"contexto": contexto, "pergunta": pergunta}
+
+    chain = RunnableLambda(build_inputs) | prompt | llm | StrOutputParser()
+
+    if question is not None:
+        return chain.invoke(question)
+    return chain
