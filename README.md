@@ -137,4 +137,39 @@ Até logo!
 - **`different vector dimensions` / erro de dimensão:** o modelo de embedding mudou depois da ingestão. Rode
   `docker compose down -v && docker compose up -d` e a ingestão de novo (ou troque `PG_VECTOR_COLLECTION_NAME`).
 - **`connection refused` na porta 5432:** o banco não está de pé — confira com `docker compose ps`.
-- **Erro de cota/429 no Gemini:** o plano gratuito tem limite de requisições por minuto; aguarde e tente de novo.
+- **Erro de cota/429 no Gemini:** o plano gratuito limita tokens de embedding por minuto. A ingestão já envia os
+  chunks em lotes de 20 e, ao receber 429, espera e tenta de novo sozinha (mensagem
+  "Limite de requisições do provedor atingido; aguardando ..."). Se ainda falhar, aguarde 1 minuto e rode de novo —
+  os IDs fixos evitam duplicar os chunks.
+
+## Teste realizado
+
+Execução real com Gemini (`gemini-embedding-001` + `gemini-3.5-flash-lite`) contra o `document.pdf`:
+
+```
+Lendo PDF: .../document.pdf
+   20/67 chunks gravados
+   40/67 chunks gravados
+   60/67 chunks gravados
+   Limite de requisições do provedor atingido; aguardando 20s (tentativa 1/5)...
+   67/67 chunks gravados
+Ingestão concluída: 34 página(s), 67 chunk(s) gravados no PGVector.
+
+PERGUNTA: Qual o faturamento da Empresa SuperTechIABrazil?
+RESPOSTA: R$ 10.000.000,00
+
+PERGUNTA: Qual o faturamento da empresa Clara Construtora Holding?
+RESPOSTA: R$ 4.209.981,58
+
+PERGUNTA: Em que ano foi fundada a Clara Consultoria Holding?
+RESPOSTA: 1984
+
+PERGUNTA: Qual é a capital da França?
+RESPOSTA: Não tenho informações necessárias para responder sua pergunta.
+
+PERGUNTA: Quantos clientes temos em 2024?
+RESPOSTA: Não tenho informações necessárias para responder sua pergunta.
+
+PERGUNTA: Você acha isso bom ou ruim?
+RESPOSTA: Não tenho informações necessárias para responder sua pergunta.
+```

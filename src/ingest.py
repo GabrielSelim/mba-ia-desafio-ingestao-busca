@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -15,6 +16,10 @@ PDF_PATH = os.getenv("PDF_PATH") or str(ROOT_DIR / "document.pdf")
 
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 150
+
+BATCH_SIZE = 20          # chunks por chamada de embedding
+MAX_RETRIES = 5
+RETRY_WAIT_SECONDS = 20  # espera cresce a cada tentativa (20s, 40s, ...)
 
 
 def ingest_pdf():
@@ -40,9 +45,30 @@ def ingest_pdf():
     ids = [f"doc-{i}" for i in range(len(chunks))]
 
     store = get_vector_store()
-    store.add_documents(documents=chunks, ids=ids)
+
+    # Envia em lotes: os planos gratuitos limitam tokens de embedding por minuto.
+    for start in range(0, len(chunks), BATCH_SIZE):
+        end = min(start + BATCH_SIZE, len(chunks))
+        _add_with_retry(store, chunks[start:end], ids[start:end])
+        print(f"   {end}/{len(chunks)} chunks gravados")
 
     print(f"Ingestão concluída: {len(documents)} página(s), {len(chunks)} chunk(s) gravados no PGVector.")
+
+
+def _add_with_retry(store, batch, batch_ids):
+    """Grava um lote; se o provedor recusar por limite de taxa (429), espera e tenta de novo."""
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            store.add_documents(documents=batch, ids=batch_ids)
+            return
+        except Exception as exc:  # noqa: BLE001
+            message = str(exc).lower()
+            is_rate_limit = "429" in message or "quota" in message or "rate limit" in message
+            if not is_rate_limit or attempt == MAX_RETRIES:
+                raise
+            wait = RETRY_WAIT_SECONDS * attempt
+            print(f"   Limite de requisições do provedor atingido; aguardando {wait}s (tentativa {attempt}/{MAX_RETRIES})...")
+            time.sleep(wait)
 
 
 if __name__ == "__main__":

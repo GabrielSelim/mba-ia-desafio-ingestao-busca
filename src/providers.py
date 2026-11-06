@@ -40,8 +40,10 @@ def get_embeddings():
     from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
     _require("GOOGLE_API_KEY")
+    # transport="rest" evita o canal gRPC assíncrono, que imprime erro ao encerrar o chat.
     return GoogleGenerativeAIEmbeddings(
-        model=os.getenv("GOOGLE_EMBEDDING_MODEL", "models/gemini-embedding-001")
+        model=os.getenv("GOOGLE_EMBEDDING_MODEL", "models/gemini-embedding-001"),
+        transport="rest",
     )
 
 
@@ -58,7 +60,9 @@ def get_llm():
     from langchain_google_genai import ChatGoogleGenerativeAI
 
     return ChatGoogleGenerativeAI(
-        model=os.getenv("GOOGLE_LLM_MODEL", "gemini-3.5-flash-lite"), temperature=0
+        model=os.getenv("GOOGLE_LLM_MODEL", "gemini-3.5-flash-lite"),
+        temperature=0,
+        transport="rest",
     )
 
 
