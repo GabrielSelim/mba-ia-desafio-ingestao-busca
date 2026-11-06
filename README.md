@@ -26,7 +26,7 @@ Depois, um chat de linha de comando responde perguntas **somente com base no con
 
 | Provedor | Embeddings (padrão) | LLM (padrão) |
 |---|---|---|
-| Gemini | `models/gemini-embedding-001` | `gemini-2.5-flash-lite` |
+| Gemini | `models/gemini-embedding-001` | `gemini-3.5-flash-lite` |
 | OpenAI | `text-embedding-3-small` | `gpt-5-nano` |
 
 Os modelos podem ser trocados no `.env`. **Atenção:** cada modelo de embedding gera vetores com dimensão própria.
